@@ -21,7 +21,8 @@ namespace ClarionApp
 		DO_NOTHING,
 		ROTATE_CLOCKWISE,
 		GO_AHEAD,
-		MOVE_TO_FOOD
+		MOVE_TO_FOOD,
+		GET_FOOD
 	}
 
 	public class ClarionAgent
@@ -80,6 +81,7 @@ namespace ClarionApp
 		private DimensionValuePair inputWallAhead;
 		private DimensionValuePair inputHasFoodInMemory;
 		private DimensionValuePair inputLowFuel;
+		private DimensionValuePair inputFoodAhead;
 		#endregion
 
 		#region Action Output
@@ -93,6 +95,8 @@ namespace ClarionApp
 		private ExternalActionChunk outputGoAhead;
 
 		private ExternalActionChunk outputMoveToFood;
+
+		private ExternalActionChunk outputGetFood;
 		#endregion
 
 		#endregion
@@ -121,10 +125,14 @@ namespace ClarionApp
 			inputWallAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, DIMENSION_WALL_AHEAD);
 			inputHasFoodInMemory = World.NewDimensionValuePair (MEMORY, "HasFoodInMemory");
 			inputLowFuel = World.NewDimensionValuePair (INTERNAL_SENSOR, "LowFuel");
+			inputFoodAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, "FoodAhead");
+
 			// Initialize Output actions
 			outputRotateClockwise = World.NewExternalActionChunk (CreatureActions.ROTATE_CLOCKWISE.ToString ());
 			outputGoAhead = World.NewExternalActionChunk (CreatureActions.GO_AHEAD.ToString ());
 			outputMoveToFood = World.NewExternalActionChunk (CreatureActions.MOVE_TO_FOOD.ToString ());
+			outputGetFood = World.NewExternalActionChunk (CreatureActions.GET_FOOD.ToString ());
+
 
 
 			//Create thread to simulation
@@ -184,6 +192,7 @@ namespace ClarionApp
 		{
 			Thread.CurrentThread.CurrentCulture = new CultureInfo ("en-US");
 			if (worldServer != null && worldServer.IsConnected) {
+				Console.WriteLine ("ação: " + externalAction.ToString ()); 
 				switch (externalAction) {
 				case CreatureActions.DO_NOTHING:
 					// Do nothing as the own value says
@@ -195,8 +204,29 @@ namespace ClarionApp
 					worldServer.SendSetAngle (creatureId, 1, 1, prad);
 					break;
 				case CreatureActions.MOVE_TO_FOOD:
-					Thing thing = getNearestFood ();
-					worldServer.SendMoveTo (creatureId, 1, 1, thing.X1, thing.Y1); // ou a direção da joia
+					Thing thingMoveFood = getNearestFood ();
+					while (true) {
+						Thread.Sleep (100);
+
+						var listThings = processSensoryInformation();
+						if(!listThings.Any(item => (item.Name == thingMoveFood.Name))){
+							break;
+						}
+
+						thingMoveFood = listThings.Where (item => (item.Name == thingMoveFood.Name)).First ();
+
+						if (thingMoveFood.DistanceToCreature <= 40) {
+							break;
+						}
+						worldServer.SendMoveTo (creatureId, 1, 1, thingMoveFood.X1, thingMoveFood.Y1); // ou a direção da joia
+					}
+
+
+					break;
+				case CreatureActions.GET_FOOD:
+					Thing thingGetFood = getNearestFood ();
+					worldServer.SendEatIt (creatureId, thingGetFood.Name); // ou a direção da joia
+					memoryFood.Remove (thingGetFood);
 					break;
 				default:
 					break;
@@ -268,6 +298,10 @@ namespace ClarionApp
 			FixedRule ruleMoveToFood = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputMoveToFood, moveToFoodSupport);
 			CurrentAgent.Commit (ruleMoveToFood);
 
+			SupportCalculator getFoodSupport = FixedRuleToGetFood;
+			FixedRule ruleGetFood = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputGetFood, getFoodSupport);
+			CurrentAgent.Commit (ruleGetFood);
+
 			// Disable Rule Refinement
 			CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
 
@@ -308,8 +342,15 @@ namespace ClarionApp
 				si.Add (inputHasFoodInMemory, foodMemoryActivation);
 
 				// Percepção: combustível baixo
-				double lowFuelActivation = (creature.Fuel < 900) ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
+				double lowFuelActivation = (creature.Fuel < 1000) ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputLowFuel, lowFuelActivation);
+
+				Boolean foodAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_FOOD || item.CategoryId == Thing.categoryPFOOD || item.CategoryId == Thing.CATEGORY_NPFOOD) && item.DistanceToCreature <= 15)).Any ();
+				if (foodAhead) {
+					Console.Write ("food ahead true");
+				}
+				double foodAheadActivationValue = foodAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
+				si.Add (inputFoodAhead, foodAheadActivationValue);
 			}
 
 			int n = 0;
@@ -340,6 +381,11 @@ namespace ClarionApp
 				currentInput.Contains (inputHasFoodInMemory, CurrentAgent.Parameters.MAX_ACTIVATION) &&
 				currentInput.Contains (inputLowFuel, CurrentAgent.Parameters.MAX_ACTIVATION)
 			) ? 1.0 : 0.0;
+		}
+
+		private double FixedRuleToGetFood (ActivationCollection currentInput, Rule target)
+		{
+			return (currentInput.Contains (inputFoodAhead, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 1.0 : 0.0;
 		}
 		#endregion
 
@@ -384,7 +430,7 @@ namespace ClarionApp
 		private void setupJewelAndFoodList (IList<Thing> currentSceneInWS3D)
 		{
 			foreach (var thing in currentSceneInWS3D) {
-				if (thing.CategoryId == 21 || thing.CategoryId == 2) {
+				if (thing.CategoryId == 21 || thing.CategoryId == 2 || thing.CategoryId == 22) {
 					memoryFood.Add (thing);
 				} else if (thing.CategoryId == 3) {
 					memoryJewel.Add (thing);
