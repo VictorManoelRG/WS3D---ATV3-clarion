@@ -42,6 +42,8 @@ namespace ClarionApp
                     ws.NewBrick(4, 49, 562, 796, 599);
                     ws.NewBrick(4, -2, 6, 50, 599);
 					ws.NewDeliverySpot (4, 300, 300);
+					ws.NewFood (0, 600, 230);
+
 
                     if (!String.IsNullOrWhiteSpace(creatureId))
                     {

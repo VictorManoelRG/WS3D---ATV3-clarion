@@ -300,15 +300,50 @@ namespace ClarionApp
             }
             return response;
         }
-        /// <summary>
-        /// Send Start Creature Camera
-        /// </summary>
-        /// <param name="creatureId">The creature ID</param>
-        /// <exception cref="WorldServerConnectionError">Connection Exception</exception>
-        /// <exception cref="WorldServerReadError">Read Exception</exception>
-        /// <exception cref="WorldServerSendError">Send Exception</exception>
-        /// <returns>The messages received from World Server</returns>
-        public string SendStartCamera(string creatureId)
+
+		public string SendMoveTo (string creatureId, double vr, double vl, double x, double y)
+		{
+			String response = String.Empty;
+
+			try {
+				// Prepare the message
+				StringBuilder builder = new StringBuilder ();
+				builder.Append ("setGoTo ");
+				builder.Append (creatureId);
+				builder.Append (" ");
+				builder.Append (vr);
+				builder.Append (" ");
+				builder.Append (vl);
+				builder.Append (" ");
+				builder.Append (x);
+				builder.Append (" ");
+				builder.Append (y);
+
+				// Send Message
+				SendMessage (builder.ToString ());
+
+				// Read the response
+				response = ReadMessage ();
+			} catch (WorldServerConnectionError connEx) {
+				throw connEx;
+			} catch (WorldServerSendError sendEx) {
+				throw sendEx;
+			} catch (WorldServerReadError readEx) {
+				throw readEx;
+			} catch (Exception e) {
+				throw new WorldServerSendError ("Error while sending message", e);
+			}
+			return response;
+		}
+		/// <summary>
+		/// Send Start Creature Camera
+		/// </summary>
+		/// <param name="creatureId">The creature ID</param>
+		/// <exception cref="WorldServerConnectionError">Connection Exception</exception>
+		/// <exception cref="WorldServerReadError">Read Exception</exception>
+		/// <exception cref="WorldServerSendError">Send Exception</exception>
+		/// <returns>The messages received from World Server</returns>
+		public string SendStartCamera(string creatureId)
         {
             String response = String.Empty;
 
