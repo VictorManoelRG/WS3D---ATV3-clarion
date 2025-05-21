@@ -1,3 +1,0 @@
-/net/prod-nfs1-grad.fee.unicamp.br/feec/alunos/213307/Área de trabalho/clarion/DemoClarion-v0.8/DemoClarion/ClarionApp/obj/x86/Release/ClarionApp.csproj.AssemblyReference.cache
-/net/prod-nfs1-grad.fee.unicamp.br/feec/alunos/213307/Área de trabalho/clarion/DemoClarion-v0.8/DemoClarion/ClarionApp/obj/x86/Release/ClarionApp.csproj.CoreCompileInputs.cache
-/net/prod-nfs1-grad.fee.unicamp.br/feec/alunos/213307/Área de trabalho/clarion/DemoClarion-v0.8/DemoClarion/ClarionApp/obj/x86/Release/ClarionApp.exe

@@ -1,0 +1,4 @@
+.vs/
+ClarionApp/bin/*
+ClarionApp/obj/*
+ClarionApp/gtk-gui/*

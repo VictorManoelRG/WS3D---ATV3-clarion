@@ -924,16 +924,46 @@ namespace ClarionApp
             {throw readEx;}
             catch (Exception e)
             {throw new WorldServerSendError("Error while sending message", e);}
-		}	
-		
+		}
+
+		public string NewDeliverySpot (Int32 type, Int32 x, Int32 y)
+		{
+			String response = String.Empty;
+			String brickName = String.Empty;
+
+			try {
+				// Prepare the message
+				StringBuilder builder = new StringBuilder ();
+				builder.Append ("newDeliverySpot ");
+				builder.Append (type);
+				builder.Append (" ");
+				builder.Append (x);
+				builder.Append (" ");
+				builder.Append (y);
+
+				// Send Message
+				SendMessage (builder.ToString ());
+
+				// Read the response
+				response = ReadMessage ();
+
+				if (!String.IsNullOrWhiteSpace (response)) {
+					string [] tokens = response.Split (new char [] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+					brickName = (tokens != null && tokens.Length > 1) ? tokens [1] : null;
+				}
+
+				return brickName;
+			} catch (WorldServerConnectionError connEx) { throw connEx; } catch (WorldServerSendError sendEx) { throw sendEx; } catch (WorldServerReadError readEx) { throw readEx; } catch (Exception e) { throw new WorldServerSendError ("Error while sending message", e); }
+		}
+
 		#endregion
 
-        #region Disposable Methods
+		#region Disposable Methods
 
-        /// <summary>
-        /// Dispose Allocated Resources
-        /// </summary>
-        public void Dispose()
+		/// <summary>
+		/// Dispose Allocated Resources
+		/// </summary>
+		public void Dispose()
         {
             if (clientSocket != null)
             {
