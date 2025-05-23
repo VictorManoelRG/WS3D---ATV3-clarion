@@ -63,7 +63,7 @@ namespace ClarionApp
 		/// <summary>
 		/// Time between cognitive cycle in miliseconds
 		/// </summary>
-		public Int32 TimeBetweenCognitiveCycles = 50;
+		public Int32 TimeBetweenCognitiveCycles = 0;
 		/// <summary>
 		/// A thread Class that will handle the simulation process
 		/// </summary>
@@ -156,7 +156,7 @@ namespace ClarionApp
 			var leaflets = creature.getLeaflets ();
 			var leaflet = creature.getLeaflets ().ElementAt (0);
 
-			int initialDistX = 600;
+			int initialDistX = 450;
 			foreach (var item in colors){
 				int required = leaflet.getRequired (item);
 
@@ -346,16 +346,17 @@ namespace ClarionApp
 						processingCommand = true;
 						Thread.Sleep (100);
 
-						var listThings = worldServer.SendGetCreatureState (creatureName);
-						if (!listThings.Any (item => (item.CategoryId== Thing.CATEGORY_DeliverySPOT))) {
-							break;
+						IList<Thing> listThings = worldServer.SendGetCreatureState (creatureName);
+
+						if(listThings.Any (item => (item.CategoryId == Thing.CATEGORY_DeliverySPOT))){
+							thingDeliverySpot = listThings.Where (item => (item.CategoryId == Thing.CATEGORY_DeliverySPOT)).First ();
+							Console.Write ("distancia do delivery: " + thingDeliverySpot.DistanceToCreature);
+							if (thingDeliverySpot.DistanceToCreature <= 50) {
+								processingCommand = false;
+								break;
+							}
 						}
 
-						thingDeliverySpot = listThings.Where (item => (item.CategoryId == Thing.CATEGORY_DeliverySPOT)).First ();
-
-						if (thingDeliverySpot.DistanceToCreature <= 50) {
-							break;
-						}
 						worldServer.SendMoveTo (creatureId, 1, 1, 300, 300); // ou a direção da joia
 					}
 					processingCommand = false;
@@ -548,6 +549,10 @@ namespace ClarionApp
 
 				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MIN_ACTIVATION);
 
+
+			} else {
+				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MAX_ACTIVATION);
+
 				Boolean deliverySpotAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_DeliverySPOT) && item.DistanceToCreature <= 50)).Any ();
 				if (deliverySpotAhead) {
 					Console.Write ("jewel ahead true");
@@ -555,8 +560,6 @@ namespace ClarionApp
 
 				double deliverySpotAheadActivationValue = deliverySpotAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputDeliverySpotAhead, deliverySpotAheadActivationValue);
-			} else {
-				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MAX_ACTIVATION);
 			}
 
 			int n = 0;
@@ -590,8 +593,16 @@ namespace ClarionApp
 
 		private double FixedRuleToGoAhead (ActivationCollection currentInput, Rule target)
 		{
-			// Here we will make the logic to go ahead
-			return ((currentInput.Contains (inputWallAhead, CurrentAgent.Parameters.MIN_ACTIVATION))) ? 1 : 0.0;
+			// Verifica se alguma outra regra de maior prioridade está ativa
+			bool otherRulesActive =
+				currentInput.Contains (inputFoodAhead, CurrentAgent.Parameters.MAX_ACTIVATION) ||
+				currentInput.Contains (inputJewelAhead, CurrentAgent.Parameters.MAX_ACTIVATION) ||
+				currentInput.Contains (inputDeliverySpotAhead, CurrentAgent.Parameters.MAX_ACTIVATION);
+
+			// Só vai ahead se não houver outras regras ativas E não tiver parede à frente
+			return (!otherRulesActive &&
+				   currentInput.Contains (inputWallAhead, CurrentAgent.Parameters.MIN_ACTIVATION)) ? 1 : 0.0;
+			// Nota: Diminuí o valor de retorno para 0.5 para ser menor que outras prioridades
 		}
 
 		private double FixedRuleToMoveToFood (ActivationCollection currentInput, Rule target)
