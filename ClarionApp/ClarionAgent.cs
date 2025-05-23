@@ -91,6 +91,7 @@ namespace ClarionApp
 		private DimensionValuePair inputFoodAhead;
 		private DimensionValuePair inputJewelAhead;
 		private DimensionValuePair inputCanCompleteLeaflet;
+		private DimensionValuePair inputDeliverySpotAhead;
 		#endregion
 
 		#region Action Output
@@ -173,6 +174,7 @@ namespace ClarionApp
 			inputLowFuel = World.NewDimensionValuePair (INTERNAL_SENSOR, "LowFuel");
 			inputFoodAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, "FoodAhead");
 			inputJewelAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, "JewelAhead");
+			inputDeliverySpotAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, "DeliverySpotAhead");
 
 			// Initialize Output actions
 			outputRotateClockwise = World.NewExternalActionChunk (CreatureActions.ROTATE_CLOCKWISE.ToString ());
@@ -182,6 +184,7 @@ namespace ClarionApp
 			outputMoveToDeliverySpot = World.NewExternalActionChunk (CreatureActions.MOVE_DELIVERY_SPOT.ToString ());
 			outputGetFood = World.NewExternalActionChunk (CreatureActions.GET_FOOD.ToString ());
 			outputGetJewel = World.NewExternalActionChunk (CreatureActions.GET_JEWEL.ToString ());
+			outputDeliverLeaflet = World.NewExternalActionChunk (CreatureActions.DELIVER_LEAFLET.ToString ());
 
 
 
@@ -357,6 +360,15 @@ namespace ClarionApp
 					}
 					processingCommand = false;
 					break;
+
+				case CreatureActions.DELIVER_LEAFLET:
+					foreach(var item in creature.getLeaflets ()) {
+						creature = getCreatureInstance ();
+						if (item.canCompleteLeflet ()) {
+							worldServer.DeliverLeaflet (creatureId, Convert.ToInt32(item.leafletID));
+						}
+					}
+					break;
 				default:
 					break;
 				}
@@ -466,6 +478,10 @@ namespace ClarionApp
 			FixedRule ruleMoveToDeliverySpot = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputMoveToDeliverySpot, moveToDeliverySpotSupport);
 			CurrentAgent.Commit (ruleMoveToDeliverySpot);
 
+			SupportCalculator deliverLeafletSupport = FixedRuleToDeliverLeaflet;
+			FixedRule ruleDeliverLeaflet = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputDeliverLeaflet, deliverLeafletSupport);
+			CurrentAgent.Commit (ruleDeliverLeaflet);
+
 			// Disable Rule Refinement
 			CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
 
@@ -529,7 +545,16 @@ namespace ClarionApp
 
 				double jewelAheadActivationValue = jewelAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputJewelAhead, jewelAheadActivationValue);
+
 				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MIN_ACTIVATION);
+
+				Boolean deliverySpotAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_DeliverySPOT) && item.DistanceToCreature <= 50)).Any ();
+				if (deliverySpotAhead) {
+					Console.Write ("jewel ahead true");
+				}
+
+				double deliverySpotAheadActivationValue = deliverySpotAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
+				si.Add (inputDeliverySpotAhead, deliverySpotAheadActivationValue);
 			} else {
 				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MAX_ACTIVATION);
 			}
@@ -595,6 +620,11 @@ namespace ClarionApp
 		private double FixedRuleToMoveToDeliverySpot(ActivationCollection currentInput, Rule target)
 		{
 			return (currentInput.Contains (inputCanCompleteLeaflet, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 5.0 : 0.0;
+		}
+
+		private double FixedRuleToDeliverLeaflet (ActivationCollection currentInput, Rule target)
+		{
+			return (currentInput.Contains (inputDeliverySpotAhead, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 10.0 : 0.0;
 		}
 		#endregion
 
