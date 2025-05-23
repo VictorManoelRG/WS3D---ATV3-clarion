@@ -35,14 +35,19 @@ namespace ClarionApp
                 {
                     Console.Out.WriteLine ("[SUCCESS] " + message + "\n");
 					ws.SendWorldReset();
-                    ws.NewCreature(400, 200, 0, out creatureId, out creatureName);
+					ws.NewDeliverySpot (4, 200, 200);
+
+					ws.NewCreature(400, 200, 0, out creatureId, out creatureName);
 					ws.SendCreateLeaflet();
-                    ws.NewBrick(4, 747, 2, 800, 567);
-                    ws.NewBrick(4, 50, -4, 747, 47);
-                    ws.NewBrick(4, 49, 562, 796, 599);
-                    ws.NewBrick(4, -2, 6, 50, 599);
-					ws.NewDeliverySpot (4, 300, 300);
-					//ws.NewFood (0, 500, 230);
+                    ws.NewBrick(4, 795, 0, 800, 600);
+                    ws.NewBrick(4, 0, 0, 800, 5);
+                    ws.NewBrick(4, 0, 595, 800, 600);
+                    ws.NewBrick(4, 0, 0, 5, 600);
+
+					ws.NewFood (0, 500, 230);
+					ws.NewFood (0, 315, 374);
+					ws.NewFood (0, 374, 315);
+
 					//ws.NewJewel (0, 500, 180);
 
 
