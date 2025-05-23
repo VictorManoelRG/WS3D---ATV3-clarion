@@ -173,7 +173,7 @@ namespace ClarionApp
 				int required = leaflet2.getRequired (item);
 
 				for (int i = 0; i < required; i++) {
-					nws.NewJewel (getColorInt [item], initialDistX, 200);
+					nws.NewJewel (getColorInt [item], initialDistX, 150);
 					initialDistX += 20;
 				}
 			}
@@ -675,13 +675,17 @@ namespace ClarionApp
 		{
 			return (
 				currentInput.Contains (inputHasFoodInMemory, CurrentAgent.Parameters.MAX_ACTIVATION) &&
-				currentInput.Contains (inputLowFuel, CurrentAgent.Parameters.MAX_ACTIVATION)
+				currentInput.Contains (inputLowFuel, CurrentAgent.Parameters.MAX_ACTIVATION) &&
+				!currentInput.Contains (inputFoodAhead, CurrentAgent.Parameters.MAX_ACTIVATION) && 
+				!currentInput.Contains (inputJewelAhead, CurrentAgent.Parameters.MAX_ACTIVATION)
 			) ? 1.0 : 0.0;
 		}
 
 		private double FixedRuleToMoveToJewel (ActivationCollection currentInput, Rule target)
 		{
-			return (currentInput.Contains (inputHasJewelInMemory, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 1.0 : 0.0;
+			return (currentInput.Contains (inputHasJewelInMemory, CurrentAgent.Parameters.MAX_ACTIVATION) &&
+				!currentInput.Contains (inputFoodAhead, CurrentAgent.Parameters.MAX_ACTIVATION) &&
+				!currentInput.Contains (inputJewelAhead, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 1.0 : 0.0;
 		}
 
 		private double FixedRuleToGetFood (ActivationCollection currentInput, Rule target)
