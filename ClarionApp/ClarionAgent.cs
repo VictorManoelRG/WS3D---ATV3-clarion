@@ -166,7 +166,7 @@ namespace ClarionApp
 				}
 			}
 
-			var leaflet2 = creature.getLeaflets ().ElementAt (0);
+			var leaflet2 = creature.getLeaflets ().ElementAt (1);
 
 			 initialDistX = 150;
 			foreach (var item in colors) {
@@ -174,6 +174,18 @@ namespace ClarionApp
 
 				for (int i = 0; i < required; i++) {
 					nws.NewJewel (getColorInt [item], initialDistX, 200);
+					initialDistX += 20;
+				}
+			}
+
+			var leaflet3 = creature.getLeaflets ().ElementAt (2);
+
+			initialDistX = 450;
+			foreach (var item in colors) {
+				int required = leaflet3.getRequired (item);
+
+				for (int i = 0; i < required; i++) {
+					nws.NewJewel (getColorInt [item], initialDistX, 400);
 					initialDistX += 20;
 				}
 			}
@@ -291,22 +303,24 @@ namespace ClarionApp
 					break;
 
 				case CreatureActions.MOVE_TO_JEWEL:
-					IList<Thing> listThings = worldServer.SendGetCreatureState (creatureName);
-					Thing thingMoveJewel = getNearestJewel (listThings);
-					if (thingMoveJewel == null) {//objeto saiu da visao, acessar a da memoria
-						thingMoveJewel = getNearestJewel (memoryJewel);
-					}
+					Thing thingMoveJewel;
 					while (true) {
 						processingCommand = true;
 						Thread.Sleep (20);
 
-						listThings  = worldServer.SendGetCreatureState (creatureName);
-						if (!listThings.Any (item => (item.Name == thingMoveJewel.Name))) {
-							break;
+						//listThings  = worldServer.SendGetCreatureState (creatureName);
+						updateMemoryJewel ();
+						//if (!listThings.Any (item => (item.Name == thingMoveJewel.Name))) {
+						//	break;
+						//}
+
+						//thingMoveJewel = listThings.Where (item => (item.Name == thingMoveJewel.Name)).First ();
+						IList<Thing> listThings = worldServer.SendGetCreatureState (creatureName);
+						thingMoveJewel = getNearestJewel (listThings);
+						if (thingMoveJewel == null) {//objeto saiu da visao, acessar a da memoria
+
+							thingMoveJewel = getNearestJewel (memoryJewel);
 						}
-
-						thingMoveJewel = listThings.Where (item => (item.Name == thingMoveJewel.Name)).First ();
-
 						if (thingMoveJewel.DistanceToCreature <= 15) {
 							break;
 						}
