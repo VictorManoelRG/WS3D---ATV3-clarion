@@ -15,6 +15,8 @@ namespace ClarionApp.Model
 		public Int32 payment { get; set; }
 		public Boolean situation { get; set; }
 
+		private IList<String> colors = new List<string> () { "Red", "Yellow", "White", "Green", "Blue", "Magenta" };
+
 		public void PrintLeaflet(int k) {
 			Console.Write("ID: "+leafletID+" ");
 			foreach (LeafletItem li in items) {
@@ -37,10 +39,29 @@ namespace ClarionApp.Model
 			return(0);
 		}
 
-		public void print() {
+
+		public void printRequired() {
 			Console.WriteLine("Red: "+getRequired("Red")+" Green: "+getRequired("Green")+" Blue: "+getRequired("Blue")+
 			                  " Yellow: "+getRequired("Yellow")+" Magenta: "+getRequired("Magenta")+" White: "+getRequired("White"));
 			
+		}
+
+		public void printCollected ()
+		{
+			Console.WriteLine ("Red: " + getCollected ("Red") + " Green: " + getCollected ("Green") + " Blue: " + getCollected ("Blue") +
+							  " Yellow: " + getCollected ("Yellow") + " Magenta: " + getCollected ("Magenta") + " White: " + getCollected ("White"));
+
+		}
+
+		public bool canCompleteLeflet ()
+		{
+			bool canComplete = true;
+			foreach(var color in colors) {
+				if (getRequired (color) != getCollected (color)) {
+					return false;
+				}
+			}
+			return canComplete;
 		}
 
 		public Dictionary<string,LeafletItem> getLeaflet() {
@@ -63,6 +84,8 @@ namespace ClarionApp.Model
 			}
 			return(m);
 		}
+
+
 	}
 	
 }

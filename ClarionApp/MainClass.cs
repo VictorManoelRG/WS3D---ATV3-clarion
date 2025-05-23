@@ -42,8 +42,8 @@ namespace ClarionApp
                     ws.NewBrick(4, 49, 562, 796, 599);
                     ws.NewBrick(4, -2, 6, 50, 599);
 					ws.NewDeliverySpot (4, 300, 300);
-					ws.NewFood (0, 500, 230);
-					ws.NewJewel (0, 500, 180);
+					//ws.NewFood (0, 500, 230);
+					//ws.NewJewel (0, 500, 180);
 
 
 

@@ -90,6 +90,7 @@ namespace ClarionApp
 		private DimensionValuePair inputLowFuel;
 		private DimensionValuePair inputFoodAhead;
 		private DimensionValuePair inputJewelAhead;
+		private DimensionValuePair inputCanCompleteLeaflet;
 		#endregion
 
 		#region Action Output
@@ -107,6 +108,9 @@ namespace ClarionApp
 
 		private ExternalActionChunk outputGetFood;
 		private ExternalActionChunk outputGetJewel;
+
+		private ExternalActionChunk outputMoveToDeliverySpot;
+		private ExternalActionChunk outputDeliverLeaflet;
 		#endregion
 
 		#endregion
@@ -118,7 +122,18 @@ namespace ClarionApp
 		HashSet<string> gotFood = new HashSet<string> ();
 		HashSet<string> gotJewel = new HashSet<string> ();
 
+		private IList<String> colors = new List<string> () { "Red", "Yellow", "White", "Green", "Blue", "Magenta" };
+
 		bool canCompleteLeaflet = false;
+
+		private Dictionary<string, int> getColorInt = new Dictionary<string, int> {
+			{"Red", 0},
+			{"Green", 1},
+			{"Blue", 2},
+			{"Yellow", 3},
+			{"Magenta", 4},
+			{"White", 5}
+		  };
 
 		Creature creature;
 		#endregion
@@ -134,10 +149,27 @@ namespace ClarionApp
 			creatureId = creature_ID;
 			creatureName = creature_Name;
 
+			IList<Thing> currentSceneInWS3D = processSensoryInformation ();
+			creature = (Creature)currentSceneInWS3D.Where (item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First ();
+
+			var leaflets = creature.getLeaflets ();
+			var leaflet = creature.getLeaflets ().ElementAt (0);
+
+			int initialDistX = 600;
+			foreach (var item in colors){
+				int required = leaflet.getRequired (item);
+
+				for(int i = 0; i<required; i++) {
+					nws.NewJewel (getColorInt [item], initialDistX, 200);
+					initialDistX += 20;
+				}
+			}
+
 			// Initialize Input Information
 			inputWallAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, DIMENSION_WALL_AHEAD);
 			inputHasFoodInMemory = World.NewDimensionValuePair (MEMORY, "HasFoodInMemory");
 			inputHasJewelInMemory = World.NewDimensionValuePair (MEMORY, "HasJewelInMemory");
+			inputCanCompleteLeaflet = World.NewDimensionValuePair (MEMORY, "CanCompleteLeaflet");
 			inputLowFuel = World.NewDimensionValuePair (INTERNAL_SENSOR, "LowFuel");
 			inputFoodAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, "FoodAhead");
 			inputJewelAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, "JewelAhead");
@@ -147,6 +179,7 @@ namespace ClarionApp
 			outputGoAhead = World.NewExternalActionChunk (CreatureActions.GO_AHEAD.ToString ());
 			outputMoveToFood = World.NewExternalActionChunk (CreatureActions.MOVE_TO_FOOD.ToString ());
 			outputMoveToJewel = World.NewExternalActionChunk (CreatureActions.MOVE_TO_JEWEL.ToString ());
+			outputMoveToDeliverySpot = World.NewExternalActionChunk (CreatureActions.MOVE_DELIVERY_SPOT.ToString ());
 			outputGetFood = World.NewExternalActionChunk (CreatureActions.GET_FOOD.ToString ());
 			outputGetJewel = World.NewExternalActionChunk (CreatureActions.GET_JEWEL.ToString ());
 
@@ -234,7 +267,7 @@ namespace ClarionApp
 
 						thingMoveFood = listThings.Where (item => (item.Name == thingMoveFood.Name)).First ();
 
-						if (thingMoveFood.DistanceToCreature <= 20) {
+						if (thingMoveFood.DistanceToCreature <= 15) {
 							break;
 						}
 						worldServer.SendMoveTo (creatureId, 1, 1, thingMoveFood.X1, thingMoveFood.Y1); // ou a direção da joia
@@ -255,7 +288,7 @@ namespace ClarionApp
 
 						thingMoveJewel = listThings.Where (item => (item.Name == thingMoveJewel.Name)).First ();
 
-						if (thingMoveJewel.DistanceToCreature <= 20) {
+						if (thingMoveJewel.DistanceToCreature <= 15) {
 							break;
 						}
 						worldServer.SendMoveTo (creatureId, 1, 1, thingMoveJewel.X1, thingMoveJewel.Y1); // ou a direção da joia
@@ -268,7 +301,17 @@ namespace ClarionApp
 					if (thingGetFood == null) {
 						break;
 					}
-					memoryFood.Remove (thingGetFood);  // Remove primeiro para evitar reentrada
+					Thing itemToRemove = null;
+					foreach (Thing item in memoryFood) {
+						if (item.Name == thingGetFood.Name) {
+							itemToRemove = item;
+							break; // Encontrou o primeiro, pode parar
+						}
+					}
+
+					if (itemToRemove != null) {
+						memoryFood.Remove (itemToRemove);
+					} // Remove primeiro para evitar reentrada
 					gotFood.Add (thingGetFood.Name);       // Marca como coletado
 					worldServer.SendEatIt (creatureId, thingGetFood.Name);
 					break;
@@ -280,12 +323,50 @@ namespace ClarionApp
 					}
 					worldServer.SendSackIt (creatureId, thingGetJewel.Name); // ou a direção da joia
 					gotJewel.Add (thingGetJewel.Name);
-					memoryJewel.Remove (thingGetJewel);
+					Thing itemToRemoveb = null;
+					foreach (Thing item in memoryJewel) {
+						if (item.Name == thingGetJewel.Name) {
+							itemToRemoveb = item;
+							break; // Encontrou o primeiro, pode parar
+						}
+					}
+
+					if (itemToRemoveb != null) {
+						memoryJewel.Remove (itemToRemoveb);
+					}
+
+					break;
+
+				case CreatureActions.MOVE_DELIVERY_SPOT:
+					Thing thingDeliverySpot;
+					while (true) {
+						processingCommand = true;
+						Thread.Sleep (100);
+
+						var listThings = worldServer.SendGetCreatureState (creatureName);
+						if (!listThings.Any (item => (item.CategoryId== Thing.CATEGORY_DeliverySPOT))) {
+							break;
+						}
+
+						thingDeliverySpot = listThings.Where (item => (item.CategoryId == Thing.CATEGORY_DeliverySPOT)).First ();
+
+						if (thingDeliverySpot.DistanceToCreature <= 50) {
+							break;
+						}
+						worldServer.SendMoveTo (creatureId, 1, 1, 300, 300); // ou a direção da joia
+					}
+					processingCommand = false;
 					break;
 				default:
 					break;
 				}
 			}
+		}
+
+		private Creature getCreatureInstance ()
+		{
+			IList<Thing> currentSceneInWS3D = processSensoryInformation ();
+			return  (Creature)currentSceneInWS3D.Where (item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First ();
 		}
 
 		private Thing getNearestFood ()
@@ -381,6 +462,10 @@ namespace ClarionApp
 			FixedRule ruleGetJewel = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputGetJewel, getJewelSupport);
 			CurrentAgent.Commit (ruleGetJewel);
 
+			SupportCalculator moveToDeliverySpotSupport = FixedRuleToMoveToDeliverySpot;
+			FixedRule ruleMoveToDeliverySpot = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputMoveToDeliverySpot, moveToDeliverySpotSupport);
+			CurrentAgent.Commit (ruleMoveToDeliverySpot);
+
 			// Disable Rule Refinement
 			CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
 
@@ -415,6 +500,7 @@ namespace ClarionApp
 
 			//Console.WriteLine(sensorialInformation);
 			creature = (Creature)listOfThings.Where (item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First ();
+			canCompleteLeaflet = seeIfCanCompleteAnyLeaflet ();
 
 			if (!canCompleteLeaflet) {
 				double foodMemoryActivation = (memoryFood.Count () > 0) ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
@@ -424,7 +510,7 @@ namespace ClarionApp
 				double lowFuelActivation = (creature.Fuel < 1000) ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputLowFuel, lowFuelActivation);
 
-				Boolean foodAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_FOOD || item.CategoryId == Thing.categoryPFOOD || item.CategoryId == Thing.CATEGORY_NPFOOD) && item.DistanceToCreature <= 20)).Any ();
+				Boolean foodAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_FOOD || item.CategoryId == Thing.categoryPFOOD || item.CategoryId == Thing.CATEGORY_NPFOOD) && item.DistanceToCreature <= 15)).Any ();
 				if (foodAhead) {
 					Console.Write ("food ahead true");
 				}
@@ -436,14 +522,16 @@ namespace ClarionApp
 				double jewelInMemoryActivationValue = memoryJewel.Any() ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputHasJewelInMemory, jewelInMemoryActivationValue);
 
-				Boolean jewelAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_JEWEL) && item.DistanceToCreature <= 20)).Any ();
+				Boolean jewelAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_JEWEL) && item.DistanceToCreature <= 15)).Any ();
 				if (foodAhead) {
 					Console.Write ("jewel ahead true");
 				}
 
 				double jewelAheadActivationValue = jewelAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputJewelAhead, jewelAheadActivationValue);
-
+				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MIN_ACTIVATION);
+			} else {
+				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MAX_ACTIVATION);
 			}
 
 			int n = 0;
@@ -452,6 +540,19 @@ namespace ClarionApp
 				n++;
 			}
 			return si;
+		}
+
+		private bool seeIfCanCompleteAnyLeaflet ()
+		{
+			bool canComplete = false;
+			var leaflets = creature.getLeaflets ();
+			foreach(var item in leaflets) {
+				if (item.canCompleteLeflet ()) {
+					canComplete = true;
+				}
+			}
+
+			return canComplete;
 		}
 		#endregion
 
@@ -489,6 +590,11 @@ namespace ClarionApp
 		private double FixedRuleToGetJewel (ActivationCollection currentInput, Rule target)
 		{
 			return (currentInput.Contains (inputJewelAhead, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 2.0 : 0.0;
+		}
+
+		private double FixedRuleToMoveToDeliverySpot(ActivationCollection currentInput, Rule target)
+		{
+			return (currentInput.Contains (inputCanCompleteLeaflet, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 5.0 : 0.0;
 		}
 		#endregion
 
