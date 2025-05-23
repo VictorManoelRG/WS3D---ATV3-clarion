@@ -22,7 +22,11 @@ namespace ClarionApp
 		ROTATE_CLOCKWISE,
 		GO_AHEAD,
 		MOVE_TO_FOOD,
-		GET_FOOD
+		GET_FOOD,
+		MOVE_TO_JEWEL,
+		GET_JEWEL,
+		MOVE_DELIVERY_SPOT,
+		DELIVER_LEAFLET
 	}
 
 	public class ClarionAgent
@@ -59,11 +63,13 @@ namespace ClarionApp
 		/// <summary>
 		/// Time between cognitive cycle in miliseconds
 		/// </summary>
-		public Int32 TimeBetweenCognitiveCycles = 0;
+		public Int32 TimeBetweenCognitiveCycles = 50;
 		/// <summary>
 		/// A thread Class that will handle the simulation process
 		/// </summary>
 		private Thread runThread;
+
+		private bool processingCommand = false;
 		#endregion
 
 		#region Agent
@@ -80,8 +86,10 @@ namespace ClarionApp
 		/// </summary>
 		private DimensionValuePair inputWallAhead;
 		private DimensionValuePair inputHasFoodInMemory;
+		private DimensionValuePair inputHasJewelInMemory;
 		private DimensionValuePair inputLowFuel;
 		private DimensionValuePair inputFoodAhead;
+		private DimensionValuePair inputJewelAhead;
 		#endregion
 
 		#region Action Output
@@ -95,8 +103,10 @@ namespace ClarionApp
 		private ExternalActionChunk outputGoAhead;
 
 		private ExternalActionChunk outputMoveToFood;
+		private ExternalActionChunk outputMoveToJewel;
 
 		private ExternalActionChunk outputGetFood;
+		private ExternalActionChunk outputGetJewel;
 		#endregion
 
 		#endregion
@@ -104,6 +114,9 @@ namespace ClarionApp
 		#region Variaveis
 		IList<Thing> memoryJewel = new List<Thing> ();
 		IList<Thing> memoryFood = new List<Thing> ();
+
+		HashSet<string> gotFood = new HashSet<string> ();
+		HashSet<string> gotJewel = new HashSet<string> ();
 
 		bool canCompleteLeaflet = false;
 
@@ -124,14 +137,18 @@ namespace ClarionApp
 			// Initialize Input Information
 			inputWallAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, DIMENSION_WALL_AHEAD);
 			inputHasFoodInMemory = World.NewDimensionValuePair (MEMORY, "HasFoodInMemory");
+			inputHasJewelInMemory = World.NewDimensionValuePair (MEMORY, "HasJewelInMemory");
 			inputLowFuel = World.NewDimensionValuePair (INTERNAL_SENSOR, "LowFuel");
 			inputFoodAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, "FoodAhead");
+			inputJewelAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, "JewelAhead");
 
 			// Initialize Output actions
 			outputRotateClockwise = World.NewExternalActionChunk (CreatureActions.ROTATE_CLOCKWISE.ToString ());
 			outputGoAhead = World.NewExternalActionChunk (CreatureActions.GO_AHEAD.ToString ());
 			outputMoveToFood = World.NewExternalActionChunk (CreatureActions.MOVE_TO_FOOD.ToString ());
+			outputMoveToJewel = World.NewExternalActionChunk (CreatureActions.MOVE_TO_JEWEL.ToString ());
 			outputGetFood = World.NewExternalActionChunk (CreatureActions.GET_FOOD.ToString ());
+			outputGetJewel = World.NewExternalActionChunk (CreatureActions.GET_JEWEL.ToString ());
 
 
 
@@ -192,7 +209,7 @@ namespace ClarionApp
 		{
 			Thread.CurrentThread.CurrentCulture = new CultureInfo ("en-US");
 			if (worldServer != null && worldServer.IsConnected) {
-				Console.WriteLine ("ação: " + externalAction.ToString ()); 
+				Console.WriteLine ("ação: " + externalAction.ToString ());
 				switch (externalAction) {
 				case CreatureActions.DO_NOTHING:
 					// Do nothing as the own value says
@@ -204,29 +221,66 @@ namespace ClarionApp
 					worldServer.SendSetAngle (creatureId, 1, 1, prad);
 					break;
 				case CreatureActions.MOVE_TO_FOOD:
+
 					Thing thingMoveFood = getNearestFood ();
 					while (true) {
+						processingCommand = true;
 						Thread.Sleep (100);
 
-						var listThings = processSensoryInformation();
-						if(!listThings.Any(item => (item.Name == thingMoveFood.Name))){
+						var listThings = worldServer.SendGetCreatureState (creatureName);
+						if (!listThings.Any (item => (item.Name == thingMoveFood.Name))) {
 							break;
 						}
 
 						thingMoveFood = listThings.Where (item => (item.Name == thingMoveFood.Name)).First ();
 
-						if (thingMoveFood.DistanceToCreature <= 40) {
+						if (thingMoveFood.DistanceToCreature <= 20) {
 							break;
 						}
 						worldServer.SendMoveTo (creatureId, 1, 1, thingMoveFood.X1, thingMoveFood.Y1); // ou a direção da joia
 					}
-
-
+					processingCommand = false;
 					break;
+
+				case CreatureActions.MOVE_TO_JEWEL:
+					Thing thingMoveJewel = getNearestJewel ();
+					while (true) {
+						processingCommand = true;
+						Thread.Sleep (100);
+
+						var listThings  = worldServer.SendGetCreatureState (creatureName);
+						if (!listThings.Any (item => (item.Name == thingMoveJewel.Name))) {
+							break;
+						}
+
+						thingMoveJewel = listThings.Where (item => (item.Name == thingMoveJewel.Name)).First ();
+
+						if (thingMoveJewel.DistanceToCreature <= 20) {
+							break;
+						}
+						worldServer.SendMoveTo (creatureId, 1, 1, thingMoveJewel.X1, thingMoveJewel.Y1); // ou a direção da joia
+					}
+					processingCommand = false;
+					break;
+
 				case CreatureActions.GET_FOOD:
 					Thing thingGetFood = getNearestFood ();
-					worldServer.SendEatIt (creatureId, thingGetFood.Name); // ou a direção da joia
-					memoryFood.Remove (thingGetFood);
+					if (thingGetFood == null) {
+						break;
+					}
+					memoryFood.Remove (thingGetFood);  // Remove primeiro para evitar reentrada
+					gotFood.Add (thingGetFood.Name);       // Marca como coletado
+					worldServer.SendEatIt (creatureId, thingGetFood.Name);
+					break;
+
+				case CreatureActions.GET_JEWEL:
+					Thing thingGetJewel = getNearestJewel ();
+					if (thingGetJewel == null) {
+						break;
+					}
+					worldServer.SendSackIt (creatureId, thingGetJewel.Name); // ou a direção da joia
+					gotJewel.Add (thingGetJewel.Name);
+					memoryJewel.Remove (thingGetJewel);
 					break;
 				default:
 					break;
@@ -245,6 +299,23 @@ namespace ClarionApp
 				if (distance < minDistance) {
 					minDistance = distance;
 					nearest = food;
+				}
+			}
+
+			return nearest;
+		}
+
+		private Thing getNearestJewel ()
+		{
+			Thing nearest = null;
+			double minDistance = double.MaxValue;
+
+			foreach (Thing jewel in memoryJewel) {
+				double distance = getDistance (jewel.X1, jewel.Y1, creature.X1, creature.Y1);
+
+				if (distance < minDistance) {
+					minDistance = distance;
+					nearest = jewel;
 				}
 			}
 
@@ -298,9 +369,17 @@ namespace ClarionApp
 			FixedRule ruleMoveToFood = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputMoveToFood, moveToFoodSupport);
 			CurrentAgent.Commit (ruleMoveToFood);
 
+			SupportCalculator moveToJewelSupport = FixedRuleToMoveToJewel;
+			FixedRule ruleMoveToJewel = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputMoveToJewel, moveToJewelSupport);
+			CurrentAgent.Commit (ruleMoveToJewel);
+
 			SupportCalculator getFoodSupport = FixedRuleToGetFood;
 			FixedRule ruleGetFood = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputGetFood, getFoodSupport);
 			CurrentAgent.Commit (ruleGetFood);
+
+			SupportCalculator getJewelSupport = FixedRuleToGetJewel;
+			FixedRule ruleGetJewel = AgentInitializer.InitializeActionRule (CurrentAgent, FixedRule.Factory, outputGetJewel, getJewelSupport);
+			CurrentAgent.Commit (ruleGetJewel);
 
 			// Disable Rule Refinement
 			CurrentAgent.ACS.Parameters.PERFORM_RER_REFINEMENT = false;
@@ -345,12 +424,26 @@ namespace ClarionApp
 				double lowFuelActivation = (creature.Fuel < 1000) ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputLowFuel, lowFuelActivation);
 
-				Boolean foodAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_FOOD || item.CategoryId == Thing.categoryPFOOD || item.CategoryId == Thing.CATEGORY_NPFOOD) && item.DistanceToCreature <= 15)).Any ();
+				Boolean foodAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_FOOD || item.CategoryId == Thing.categoryPFOOD || item.CategoryId == Thing.CATEGORY_NPFOOD) && item.DistanceToCreature <= 20)).Any ();
 				if (foodAhead) {
 					Console.Write ("food ahead true");
 				}
+
 				double foodAheadActivationValue = foodAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputFoodAhead, foodAheadActivationValue);
+
+
+				double jewelInMemoryActivationValue = memoryJewel.Any() ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
+				si.Add (inputHasJewelInMemory, jewelInMemoryActivationValue);
+
+				Boolean jewelAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_JEWEL) && item.DistanceToCreature <= 20)).Any ();
+				if (foodAhead) {
+					Console.Write ("jewel ahead true");
+				}
+
+				double jewelAheadActivationValue = jewelAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
+				si.Add (inputJewelAhead, jewelAheadActivationValue);
+
 			}
 
 			int n = 0;
@@ -366,13 +459,13 @@ namespace ClarionApp
 		private double FixedRuleToAvoidCollisionWall (ActivationCollection currentInput, Rule target)
 		{
 			// See partial match threshold to verify what are the rules available for action selection
-			return ((currentInput.Contains (inputWallAhead, CurrentAgent.Parameters.MAX_ACTIVATION))) ? 1.0 : 0.0;
+			return ((currentInput.Contains (inputWallAhead, CurrentAgent.Parameters.MAX_ACTIVATION))) ? 1 : 0.0;
 		}
 
 		private double FixedRuleToGoAhead (ActivationCollection currentInput, Rule target)
 		{
 			// Here we will make the logic to go ahead
-			return ((currentInput.Contains (inputWallAhead, CurrentAgent.Parameters.MIN_ACTIVATION))) ? 1.0 : 0.0;
+			return ((currentInput.Contains (inputWallAhead, CurrentAgent.Parameters.MIN_ACTIVATION))) ? 1 : 0.0;
 		}
 
 		private double FixedRuleToMoveToFood (ActivationCollection currentInput, Rule target)
@@ -383,9 +476,19 @@ namespace ClarionApp
 			) ? 1.0 : 0.0;
 		}
 
+		private double FixedRuleToMoveToJewel (ActivationCollection currentInput, Rule target)
+		{
+			return (currentInput.Contains (inputHasJewelInMemory, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 1.0 : 0.0;
+		}
+
 		private double FixedRuleToGetFood (ActivationCollection currentInput, Rule target)
 		{
-			return (currentInput.Contains (inputFoodAhead, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 1.0 : 0.0;
+			return (currentInput.Contains (inputFoodAhead, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 3.0 : 0.0;
+		}
+
+		private double FixedRuleToGetJewel (ActivationCollection currentInput, Rule target)
+		{
+			return (currentInput.Contains (inputJewelAhead, CurrentAgent.Parameters.MAX_ACTIVATION)) ? 2.0 : 0.0;
 		}
 		#endregion
 
@@ -396,44 +499,54 @@ namespace ClarionApp
 			Console.WriteLine ("Starting Cognitive Cycle ... press CTRL-C to finish !");
 			// Cognitive Cycle starts here getting sensorial information
 			while (CurrentCognitiveCycle != MaxNumberOfCognitiveCycles) {
-				// Get current sensory information                    
-				IList<Thing> currentSceneInWS3D = processSensoryInformation ();
+				if (!processingCommand) {
 
-				setupJewelAndFoodList (currentSceneInWS3D);
 
-				// Make the perception
-				SensoryInformation si = prepareSensoryInformation (currentSceneInWS3D);
+					// Get current sensory information                    
+					IList<Thing> currentSceneInWS3D = processSensoryInformation ();
 
-				//Perceive the sensory information
-				CurrentAgent.Perceive (si);
+					setupJewelAndFoodList (currentSceneInWS3D);
 
-				//Choose an action
-				ExternalActionChunk chosen = CurrentAgent.GetChosenExternalAction (si);
+					// Make the perception
+					SensoryInformation si = prepareSensoryInformation (currentSceneInWS3D);
 
-				// Get the selected action
-				String actionLabel = chosen.LabelAsIComparable.ToString ();
-				CreatureActions actionType = (CreatureActions)Enum.Parse (typeof (CreatureActions), actionLabel, true);
+					//Perceive the sensory information
+					CurrentAgent.Perceive (si);
 
-				// Call the output event handler
-				processSelectedAction (actionType);
+					//Choose an action
+					ExternalActionChunk chosen = CurrentAgent.GetChosenExternalAction (si);
 
-				// Increment the number of cognitive cycles
-				CurrentCognitiveCycle++;
+					// Get the selected action
+					String actionLabel = chosen.LabelAsIComparable.ToString ();
+					CreatureActions actionType = (CreatureActions)Enum.Parse (typeof (CreatureActions), actionLabel, true);
 
-				//Wait to the agent accomplish his job
-				if (TimeBetweenCognitiveCycles > 0) {
-					Thread.Sleep (TimeBetweenCognitiveCycles);
+					// Call the output event handler
+					processSelectedAction (actionType);
+
+					// Increment the number of cognitive cycles
+					CurrentCognitiveCycle++;
+
+					//Wait to the agent accomplish his job
+					if (TimeBetweenCognitiveCycles > 0) {
+						Thread.Sleep (TimeBetweenCognitiveCycles);
+					}
 				}
 			}
 		}
+
 
 		private void setupJewelAndFoodList (IList<Thing> currentSceneInWS3D)
 		{
 			foreach (var thing in currentSceneInWS3D) {
 				if (thing.CategoryId == 21 || thing.CategoryId == 2 || thing.CategoryId == 22) {
-					memoryFood.Add (thing);
+					// Verifica se já foi coletado OU se já está na memória
+					if (!gotFood.Contains (thing.Name) && !memoryFood.Any (t => t.Name == thing.Name)) {
+						memoryFood.Add (thing);
+					}
 				} else if (thing.CategoryId == 3) {
-					memoryJewel.Add (thing);
+					if (!gotJewel.Contains (thing.Name) && !memoryJewel.Any (t => t.Name == thing.Name)) {
+						memoryJewel.Add (thing);
+					}
 				}
 			}
 		}
