@@ -153,24 +153,24 @@ namespace ClarionApp
 			IList<Thing> currentSceneInWS3D = processSensoryInformation ();
 			creature = (Creature)currentSceneInWS3D.Where (item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First ();
 
-			Random rand = new Random ();
-			var leaflets = creature.getLeaflets ();
-			int minX = 50, maxX = 700;
-			int minY = 50, maxY = 500;
+			//Random rand = new Random ();
+			//var leaflets = creature.getLeaflets ();
+			//int minX = 50, maxX = 700;
+			//int minY = 50, maxY = 500;
 
-			for (int l = 0; l < 3 && l < leaflets.Count; l++) {
-				var leaflet = leaflets.ElementAt (l);
+			//for (int l = 0; l < 3 && l < leaflets.Count; l++) {
+			//	var leaflet = leaflets.ElementAt (l);
 
-				foreach (var color in colors) {
-					int required = leaflet.getRequired (color);
+			//	foreach (var color in colors) {
+			//		int required = leaflet.getRequired (color);
 
-					for (int i = 0; i < required; i++) {
-						int x = rand.Next (minX, maxX);
-						int y = rand.Next (minY, maxY);
-						nws.NewJewel (getColorInt [color], x, y);
-					}
-				}
-			}
+			//		for (int i = 0; i < required; i++) {
+			//			int x = rand.Next (minX, maxX);
+			//			int y = rand.Next (minY, maxY);
+			//			nws.NewJewel (getColorInt [color], x, y);
+			//		}
+			//	}
+			//}
 
 			//var leaflets = creature.getLeaflets ();
 			//var leaflet = creature.getLeaflets ().ElementAt (0);
@@ -288,6 +288,7 @@ namespace ClarionApp
 		{
 			Thread.CurrentThread.CurrentCulture = new CultureInfo ("en-US");
 			if (worldServer != null && worldServer.IsConnected) {
+				Console.Write ("comando: " + externalAction.ToString ());
 				switch (externalAction) {
 				case CreatureActions.DO_NOTHING:
 					// Do nothing as the own value says
@@ -392,14 +393,7 @@ namespace ClarionApp
 					if (itemToRemoveb != null) {
 						memoryJewel.Remove (itemToRemoveb);
 					}
-					creature = getCreatureInstance ();
-					Console.Write ("--------------------\n");
-					foreach (var item in creature.getLeaflets ()) {
-						item.printCollected ();
-						Console.Write ("\n\n");
 
-					}
-					Console.Write ("--------------------");
 					break;
 
 				case CreatureActions.MOVE_DELIVERY_SPOT:
@@ -646,7 +640,6 @@ namespace ClarionApp
 
 
 			} else {
-				Console.Write ("PODE COMPLETAR");
 				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MAX_ACTIVATION);
 
 				Boolean deliverySpotAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_DeliverySPOT) && item.DistanceToCreature <= 50)).Any ();

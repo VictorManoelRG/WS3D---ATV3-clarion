@@ -34,8 +34,8 @@ namespace ClarionApp
                 if (ws != null && ws.IsConnected)
                 {
                     Console.Out.WriteLine ("[SUCCESS] " + message + "\n");
-					ws.SendWorldReset();
-					ws.NewDeliverySpot (4, 200, 200);
+					//ws.SendWorldReset();
+					//ws.NewDeliverySpot (4, 200, 200);
 
 					ws.NewCreature(400, 200, 0, out creatureId, out creatureName);
 					ws.SendCreateLeaflet();
