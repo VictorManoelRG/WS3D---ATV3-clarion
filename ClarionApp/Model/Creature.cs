@@ -67,8 +67,6 @@ namespace ClarionApp.Model
 			foreach(var pair in l) {
 				Console.Write(pair.Key+" "+pair.Value.totalNumber+" "+pair.Value.collected+" "); 
 			}
-			Console.WriteLine(" ");
 		}
-
     }
 }

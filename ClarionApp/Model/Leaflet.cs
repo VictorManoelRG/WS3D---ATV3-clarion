@@ -57,7 +57,7 @@ namespace ClarionApp.Model
 		{
 			bool canComplete = true;
 			foreach(var color in colors) {
-				if (getRequired (color) != getCollected (color)) {
+				if (getCollected (color)<getRequired (color)) {
 					return false;
 				}
 			}

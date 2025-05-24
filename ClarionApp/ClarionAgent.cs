@@ -153,42 +153,61 @@ namespace ClarionApp
 			IList<Thing> currentSceneInWS3D = processSensoryInformation ();
 			creature = (Creature)currentSceneInWS3D.Where (item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First ();
 
+			Random rand = new Random ();
 			var leaflets = creature.getLeaflets ();
-			var leaflet = creature.getLeaflets ().ElementAt (0);
+			int minX = 50, maxX = 700;
+			int minY = 50, maxY = 500;
 
-			int initialDistX = 450;
-			foreach (var item in colors){
-				int required = leaflet.getRequired (item);
+			for (int l = 0; l < 3 && l < leaflets.Count; l++) {
+				var leaflet = leaflets.ElementAt (l);
 
-				for(int i = 0; i<required; i++) {
-					nws.NewJewel (getColorInt [item], initialDistX, 200);
-					initialDistX += 20;
+				foreach (var color in colors) {
+					int required = leaflet.getRequired (color);
+
+					for (int i = 0; i < required; i++) {
+						int x = rand.Next (minX, maxX);
+						int y = rand.Next (minY, maxY);
+						nws.NewJewel (getColorInt [color], x, y);
+					}
 				}
 			}
 
-			var leaflet2 = creature.getLeaflets ().ElementAt (1);
+			//var leaflets = creature.getLeaflets ();
+			//var leaflet = creature.getLeaflets ().ElementAt (0);
 
-			 initialDistX = 150;
-			foreach (var item in colors) {
-				int required = leaflet2.getRequired (item);
+			//int initialDistX = 450;
+			//foreach (var item in colors) {
+			//	int required = leaflet.getRequired (item);
 
-				for (int i = 0; i < required; i++) {
-					nws.NewJewel (getColorInt [item], initialDistX, 150);
-					initialDistX += 20;
-				}
-			}
+			//	for (int i = 0; i < required; i++) {
+			//		nws.NewJewel (getColorInt [item], initialDistX, 200);
+			//		initialDistX += 20;
+			//	}
+			//}
 
-			var leaflet3 = creature.getLeaflets ().ElementAt (2);
+			//var leaflet2 = creature.getLeaflets ().ElementAt (1);
 
-			initialDistX = 450;
-			foreach (var item in colors) {
-				int required = leaflet3.getRequired (item);
+			//initialDistX = 150;
+			//foreach (var item in colors) {
+			//	int required = leaflet2.getRequired (item);
 
-				for (int i = 0; i < required; i++) {
-					nws.NewJewel (getColorInt [item], initialDistX, 400);
-					initialDistX += 20;
-				}
-			}
+			//	for (int i = 0; i < required; i++) {
+			//		nws.NewJewel (getColorInt [item], initialDistX, 150);
+			//		initialDistX += 20;
+			//	}
+			//}
+
+			//var leaflet3 = creature.getLeaflets ().ElementAt (2);
+
+			//initialDistX = 450;
+			//foreach (var item in colors) {
+			//	int required = leaflet3.getRequired (item);
+
+			//	for (int i = 0; i < required; i++) {
+			//		nws.NewJewel (getColorInt [item], initialDistX, 400);
+			//		initialDistX += 20;
+			//	}
+			//}
 
 			// Initialize Input Information
 			inputWallAhead = World.NewDimensionValuePair (SENSOR_VISUAL_DIMENSION, DIMENSION_WALL_AHEAD);
@@ -269,7 +288,6 @@ namespace ClarionApp
 		{
 			Thread.CurrentThread.CurrentCulture = new CultureInfo ("en-US");
 			if (worldServer != null && worldServer.IsConnected) {
-				Console.WriteLine ("ação: " + externalAction.ToString ());
 				switch (externalAction) {
 				case CreatureActions.DO_NOTHING:
 					// Do nothing as the own value says
@@ -360,7 +378,6 @@ namespace ClarionApp
 					if (thingGetJewel == null) {
 						break;
 					}
-					Console.Write ("cor da joia: " + thingGetJewel.Material.Color);
 					worldServer.SendSackIt (creatureId, thingGetJewel.Name); // ou a direção da joia
 					Thread.Sleep (20);
 					gotJewel.Add (thingGetJewel.Name);
@@ -375,10 +392,18 @@ namespace ClarionApp
 					if (itemToRemoveb != null) {
 						memoryJewel.Remove (itemToRemoveb);
 					}
+					creature = getCreatureInstance ();
+					Console.Write ("--------------------\n");
+					foreach (var item in creature.getLeaflets ()) {
+						item.printCollected ();
+						Console.Write ("\n\n");
 
+					}
+					Console.Write ("--------------------");
 					break;
 
 				case CreatureActions.MOVE_DELIVERY_SPOT:
+					Console.Write ("MOVE_DELIVERY_SPOT");
 					Thing thingDeliverySpot;
 					while (true) {
 						processingCommand = true;
@@ -388,7 +413,6 @@ namespace ClarionApp
 
 						if(listThingsMoveDeliverySpot.Any (item => (item.CategoryId == Thing.CATEGORY_DeliverySPOT))){
 							thingDeliverySpot = listThingsMoveDeliverySpot.Where (item => (item.CategoryId == Thing.CATEGORY_DeliverySPOT)).First ();
-							Console.Write ("distancia do delivery: " + thingDeliverySpot.DistanceToCreature);
 							if (thingDeliverySpot.DistanceToCreature <= 50) {
 								processingCommand = false;
 								break;
@@ -417,6 +441,9 @@ namespace ClarionApp
 		private void updateMemoryJewel ()
 		{
 			IList<Thing> listThings = worldServer.SendGetCreatureState (creatureName);
+			if (listThings == null) {
+				return;
+			}
 			for (int i = 0; i < memoryJewel.Count; i++) {
 				var newItem = listThings.FirstOrDefault (t => t.Name == memoryJewel [i].Name);
 				if (newItem != null) {
@@ -428,6 +455,9 @@ namespace ClarionApp
 		private void updateMemoryFood ()
 		{
 			IList<Thing> listThings = worldServer.SendGetCreatureState (creatureName);
+			if (listThings == null) {
+				return;
+			}
 			for (int i = 0; i < memoryFood.Count; i++) {
 				var newItem = listThings.FirstOrDefault (t => t.Name == memoryFood [i].Name);
 				if (newItem != null) {
@@ -438,7 +468,7 @@ namespace ClarionApp
 
 		private Creature getCreatureInstance ()
 		{
-			IList<Thing> currentSceneInWS3D = processSensoryInformation ();
+			IList<Thing> currentSceneInWS3D = processSensoryInformation();
 			return  (Creature)currentSceneInWS3D.Where (item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First ();
 		}
 
@@ -582,7 +612,8 @@ namespace ClarionApp
 
 
 			//Console.WriteLine(sensorialInformation);
-			creature = (Creature)listOfThings.Where (item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First ();
+			creature = getCreatureInstance ();
+			Thread.Sleep (100);
 			canCompleteLeaflet = seeIfCanCompleteAnyLeaflet ();
 
 			if (!canCompleteLeaflet) {
@@ -590,12 +621,11 @@ namespace ClarionApp
 				si.Add (inputHasFoodInMemory, foodMemoryActivation);
 
 				// Percepção: combustível baixo
-				double lowFuelActivation = (creature.Fuel < 950) ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
+				double lowFuelActivation = (creature.Fuel < 300) ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 				si.Add (inputLowFuel, lowFuelActivation);
 
 				Boolean foodAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_FOOD || item.CategoryId == Thing.categoryPFOOD || item.CategoryId == Thing.CATEGORY_NPFOOD) && item.DistanceToCreature <= 15)).Any ();
 				if (foodAhead) {
-					Console.Write ("food ahead true");
 				}
 
 				double foodAheadActivationValue = foodAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
@@ -607,7 +637,6 @@ namespace ClarionApp
 
 				Boolean jewelAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_JEWEL) && item.DistanceToCreature <= 15)).Any ();
 				if (jewelAhead) {
-					Console.Write ("jewel ahead true");
 				}
 
 				double jewelAheadActivationValue = jewelAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
@@ -617,11 +646,11 @@ namespace ClarionApp
 
 
 			} else {
+				Console.Write ("PODE COMPLETAR");
 				si.Add (inputCanCompleteLeaflet, CurrentAgent.Parameters.MAX_ACTIVATION);
 
 				Boolean deliverySpotAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_DeliverySPOT) && item.DistanceToCreature <= 50)).Any ();
 				if (deliverySpotAhead) {
-					Console.Write ("jewel ahead true");
 				}
 
 				double deliverySpotAheadActivationValue = deliverySpotAhead ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
@@ -639,8 +668,12 @@ namespace ClarionApp
 		private bool seeIfCanCompleteAnyLeaflet ()
 		{
 			bool canComplete = false;
-			var leaflets = creature.getLeaflets ();
-			foreach(var item in leaflets) {
+			creature = getCreatureInstance ();
+			List<Leaflet> leaflets = creature.getLeaflets ();
+
+
+
+			foreach (var item in leaflets) {
 				if (item.canCompleteLeflet ()) {
 					canComplete = true;
 				}
