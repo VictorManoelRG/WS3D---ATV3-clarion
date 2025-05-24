@@ -153,24 +153,24 @@
 				IList<Thing> currentSceneInWS3D = processSensoryInformation ();
 				creature = (Creature)currentSceneInWS3D.Where (item => (item.CategoryId == Thing.CATEGORY_CREATURE)).First ();
 
-				Random rand = new Random ();
-				var leaflets = creature.getLeaflets ();
-				int minX = 50, maxX = 700;
-				int minY = 50, maxY = 500;
+				//Random rand = new Random ();
+				//var leaflets = creature.getLeaflets ();
+				//int minX = 50, maxX = 700;
+				//int minY = 50, maxY = 500;
 
-				for (int l = 0; l < 3 && l < leaflets.Count; l++) {
-					var leaflet = leaflets.ElementAt (l);
+				//for (int l = 0; l < 3 && l < leaflets.Count; l++) {
+				//	var leaflet = leaflets.ElementAt (l);
 
-					foreach (var color in colors) {
-						int required = leaflet.getRequired (color);
+				//	foreach (var color in colors) {
+				//		int required = leaflet.getRequired (color);
 
-						for (int i = 0; i < required; i++) {
-							int x = rand.Next (minX, maxX);
-							int y = rand.Next (minY, maxY);
-							nws.NewJewel (getColorInt [color], x, y);
-						}
-					}
-				}
+				//		for (int i = 0; i < required; i++) {
+				//			int x = rand.Next (minX, maxX);
+				//			int y = rand.Next (minY, maxY);
+				//			nws.NewJewel (getColorInt [color], x, y);
+				//		}
+				//	}
+				//}
 
 				//var leaflets = creature.getLeaflets ();
 				//var leaflet = creature.getLeaflets ().ElementAt (0);
@@ -326,19 +326,18 @@
 
 					case CreatureActions.MOVE_TO_JEWEL:
 						Thing thingMoveJewel;
-						while (true) {
+					var stopwatch = new System.Diagnostics.Stopwatch ();
+					stopwatch.Start ();
+					while (true) {
 							processingCommand = true;
 							Thread.Sleep (20);
 
-							//listThings  = worldServer.SendGetCreatureState (creatureName);
 							updateMemoryJewel ();
-							//if (!listThings.Any (item => (item.Name == thingMoveJewel.Name))) {
-							//	break;
-							//}
-
-							//thingMoveJewel = listThings.Where (item => (item.Name == thingMoveJewel.Name)).First ();
+		
 							IList<Thing> listThings = worldServer.SendGetCreatureState (creatureName);
-							thingMoveJewel = getNearestJewel (listThings);
+						thingMoveJewel = getNearestJewel (listThings);
+
+
 							if (thingMoveJewel == null) {//objeto saiu da visao, acessar a da memoria
 
 								thingMoveJewel = getNearestJewel (memoryJewel);
@@ -346,7 +345,15 @@
 							if (thingMoveJewel.DistanceToCreature <= 15) {
 								break;
 							}
-							worldServer.SendMoveTo (creatureId, 1, 1, thingMoveJewel.X1, thingMoveJewel.Y1); // ou a direção da joia
+
+						if (stopwatch.ElapsedMilliseconds >= 10000) {
+							bool jewelNowVisible = listThings.Any (item => item.Name == thingMoveJewel.Name);
+							if (!jewelNowVisible) {
+								memoryJewel = memoryJewel.Where (j => j.Name != thingMoveJewel.Name).ToList ();
+								break;
+							}
+						}
+						worldServer.SendMoveTo (creatureId, 1, 1, thingMoveJewel.X1, thingMoveJewel.Y1); // ou a direção da joia
 						}
 						processingCommand = false;
 						break;
@@ -748,7 +755,8 @@
 			#region Run Thread Method
 			private void CognitiveCycle (object obj)
 			{
-
+			   // IEnumerable<IWorldObject> enume = World.GetWorldObjects ();
+			//IEnumerable<IWorldObject> list = enume.ToList ();
 				Console.WriteLine ("Starting Cognitive Cycle ... press CTRL-C to finish !");
 				// Cognitive Cycle starts here getting sensorial information
 				while (CurrentCognitiveCycle != MaxNumberOfCognitiveCycles) {
@@ -805,7 +813,12 @@
 					}
 				}
 			}
-			#endregion
+
+		private void ensureJewelsAndFoodExists ()
+		{
 
 		}
+		#endregion
+
+	}
 	}
