@@ -316,7 +316,7 @@
 
 								thingMoveFood = getNearestFood (memoryFood);
 							}
-							if (thingMoveFood.DistanceToCreature <= 15) {
+							if (thingMoveFood.DistanceToCreature <= 20) {
 								break;
 							}
 							worldServer.SendMoveTo (creatureId, 1, 1, thingMoveFood.X1, thingMoveFood.Y1); // ou a direção da joia
@@ -342,7 +342,7 @@
 
 								thingMoveJewel = getNearestJewel (memoryJewel);
 							}
-							if (thingMoveJewel.DistanceToCreature <= 15) {
+							if (thingMoveJewel.DistanceToCreature <= 20) {
 								break;
 							}
 
@@ -625,7 +625,7 @@
 					double lowFuelActivation = (creature.Fuel < 300) ? CurrentAgent.Parameters.MAX_ACTIVATION : CurrentAgent.Parameters.MIN_ACTIVATION;
 					si.Add (inputLowFuel, lowFuelActivation);
 
-					Boolean foodAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_FOOD || item.CategoryId == Thing.categoryPFOOD || item.CategoryId == Thing.CATEGORY_NPFOOD) && item.DistanceToCreature <= 15)).Any ();
+					Boolean foodAhead = listOfThings.Where (item => ((item.CategoryId == Thing.CATEGORY_FOOD || item.CategoryId == Thing.categoryPFOOD || item.CategoryId == Thing.CATEGORY_NPFOOD) && item.DistanceToCreature <= 20 && !gotFood.Contains (item.Name))).Any ();
 					if (foodAhead) {
 					}
 
@@ -639,7 +639,7 @@
 					Boolean jewelAhead = listOfThings
 		.Where (item =>
 			 item.CategoryId == Thing.CATEGORY_JEWEL &&
-			 item.DistanceToCreature <= 15 &&
+			 item.DistanceToCreature <= 20 &&
 			 !gotJewel.Contains (item.Name)  // <<-- Garante que a joia não foi coletada
 		)
 		.Any ();
